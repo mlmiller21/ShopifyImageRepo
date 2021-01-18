@@ -5,16 +5,15 @@ import { fieldError } from "../utils/fieldError";
 
 import { Images } from "../entities/Images";
 
-import fs, { ReadStream, WriteStream } from "fs";
+import fs from "fs";
 import fileType from "file-type";
 import sizeOf from 'image-size';
 
-// couldn't get this to work with ts :(
+
 import tf from "@tensorflow/tfjs-node";
-import coco from "@tensorflow-models/coco-ssd";
+import mobileNet from "@tensorflow-models/mobilenet";
 
 import { CallbackFunction } from "ioredis";
-import { OneToMany } from "typeorm";
 import { imageDimensions } from "../interfaces/imageDimensions";
 
 export const uploadImage: (req: Request) => Promise<UserResponse | null> = async function(req: Request): Promise<UserResponse | null> {
@@ -62,6 +61,8 @@ export const uploadImage: (req: Request) => Promise<UserResponse | null> = async
     const {width, height} = size as imageDimensions;
     //Now store the file stuff
     await Images.create({imageid: fileName, extension: type!.ext, userid: req.session.userId, width: width, height: height}).save();
+
+    //NOW use a tensor flow model to obtain the tags for the image to search by
 
     return null;
 
