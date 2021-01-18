@@ -15,6 +15,7 @@ import coco from "@tensorflow-models/coco-ssd";
 
 import { CallbackFunction } from "ioredis";
 import { OneToMany } from "typeorm";
+import { imageDimensions } from "../interfaces/imageDimensions";
 
 export const uploadImage: (req: Request) => Promise<UserResponse | null> = async function(req: Request): Promise<UserResponse | null> {
     const stream = fs.createReadStream(req.file.path);
@@ -58,8 +59,9 @@ export const uploadImage: (req: Request) => Promise<UserResponse | null> = async
         console.log(err);
     })
 
+    const {width, height} = size as imageDimensions;
     //Now store the file stuff
-    await Images.create({extension: type!.ext, userid: req.session.userId, })
+    await Images.create({imageid: fileName, extension: type!.ext, userid: req.session.userId, width: width, height: height}).save();
 
     return null;
 

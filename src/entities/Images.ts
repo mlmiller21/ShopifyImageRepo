@@ -5,11 +5,17 @@ import {Tags} from "./Tags";
 @Entity("images")
 export class Images extends BaseEntity {
     //uuid
-    @PrimaryColumn()
+    @PrimaryColumn({type: 'varchar', length: '50'})
     imageid!: string;
 
     @Column({type: "varchar", length: 10})
     extension!: string;
+
+    @Column()
+    width!: number;
+
+    @Column()
+    height!: number;
 
     @CreateDateColumn()
     dateAdded: Date;
