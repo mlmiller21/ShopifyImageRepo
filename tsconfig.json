@@ -10,6 +10,7 @@
     ],
     "sourceMap": true,
     "outDir": "./dist",
+    "rootDir": ".",
     "moduleResolution": "node",
     "removeComments": true,
     "noImplicitAny": true,
@@ -19,7 +20,7 @@
     "noImplicitThis": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noImplicitReturns": true,
+    "noImplicitReturns": false,
     "noFallthroughCasesInSwitch": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
@@ -32,7 +33,8 @@
     "node_modules"
   ],
   "include": [
-    "./src/**/*.tsx",
-    "./src/**/*.ts"
+    "./src/**/*",
+    "./src/**/*",
+    "./repo/**/*"
   ]
 }

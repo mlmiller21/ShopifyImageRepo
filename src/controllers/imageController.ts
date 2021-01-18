@@ -1,6 +1,5 @@
-import { UserResponse } from "../interfaces/UserResponse";
 import { Request, Response } from "express";
-import { imageExRe } from "../regex";
+import { imageExRe, resolutionRe } from "../regex";
 import { fieldError } from "../utils/fieldError";
 
 import { Images } from "../entities/Images";
@@ -9,14 +8,16 @@ import fs from "fs";
 import fileType from "file-type";
 import sizeOf from 'image-size';
 
-
+//Couldn't get tf to work, sad face
 import tf from "@tensorflow/tfjs-node";
 import mobileNet from "@tensorflow-models/mobilenet";
 
 import { CallbackFunction } from "ioredis";
 import { imageDimensions } from "../interfaces/imageDimensions";
+import { ImageResponse } from "../interfaces/ImageReturn";
+import { User } from "../entities/User";
 
-export const uploadImage: (req: Request) => Promise<UserResponse | null> = async function(req: Request): Promise<UserResponse | null> {
+export const uploadImage: (req: Request) => Promise<ImageResponse | null> = async function(req: Request): Promise<ImageResponse | null> {
     const stream = fs.createReadStream(req.file.path);
     //validate file once again this time checking magic numbers from stream
     //if magic numbers don't match, then delete it from temp
@@ -51,21 +52,100 @@ export const uploadImage: (req: Request) => Promise<UserResponse | null> = async
             console.log(err);
         }
     })
+
     //then get new file name 
     const fileName = req.file.path.split('\\')[1];
     const newPath = `repo\\${req.session.userId}\\${fileName}`
-    move(req.file.path, newPath, (err) => {
-        console.log(err);
-    })
+    await new Promise((res, rej) => {move(req.file.path, newPath, (err) => {
+            res(console.log(err));
+        })
+    })      
 
     const {width, height} = size as imageDimensions;
     //Now store the file stuff
-    await Images.create({imageid: fileName, extension: type!.ext, userid: req.session.userId, width: width, height: height}).save();
+    
+    const image = await Images.create({imageid: fileName, extension: type!.ext, userid: req.session.userId, width: width, height: height}).save();
 
     //NOW use a tensor flow model to obtain the tags for the image to search by
 
+   /*  const imageBuffer: Buffer = await new Promise((res, rej) => {fs.readFile(newPath, (err, data) => {
+        err? rej(err) : res(data);
+        })
+    });
+
+    console.log(imageBuffer);
+    
+    const decodedImage = tf;
+    console.log(decodedImage);
+
+    const model = await mobileNet.load();
+    const predictions = await model.classify(decodedImage); */
+
     return null;
 
+}
+
+export const getImages: (req: Request) => Promise<ImageResponse> = async function(req: Request): Promise<ImageResponse> {
+    if (!req.session.userId){
+        return {errors: [fieldError('session', 'invalid session')]}
+    }
+    //just assume a user is always returned here
+    const user = await User.findOne({id: req.session.userId}, {relations: ["images"]});
+    const imageReturn = user!.images.map(image => image.imageid);
+
+    console.log(imageReturn);
+    
+    return {images: imageReturn}
+}
+
+export const searchImages: (req: Request, search: string) => Promise<ImageResponse | null> = async function(req: Request, search: string): Promise<ImageResponse | null> {
+    if (!req.session.userId){
+        return {errors: [fieldError('session', 'invalid session')]}
+    }
+    let user;
+    try{
+        user = await User.findOne({id: req.session.userId}, {relations: ["images", "images.tags"]});
+    }
+    catch(err){
+        return {errors: [fieldError('user', 'user does not exist')]}
+    }
+
+    let images;
+    //searching by resolution
+    if (resolutionRe.test(search)){
+        let dimensions = search.toLowerCase().split('x');
+        let width = parseInt(dimensions[0]);
+        let height = parseInt(dimensions[2]);
+        images = user!.images.filter(image => {
+            image.width === width && image.height === height
+        })
+    }
+    //searching by tag
+    else {
+        images = user!.images.filter(image => image.tags.some(tag => tag.tag.includes(search)));
+    }
+
+    //user: {image: {tag: []}}
+    //First filter to find all images which contain the search string in their tag
+    //Then get the image url of each image
+    const imageReturn = images.map(image => image.imageid);
+
+    return {images: imageReturn}
+}
+
+export const deleteImage: (imageid: string, req: Request) => Promise<ImageResponse | null> = async function(imageid: string, req: Request): Promise<ImageResponse | null> {
+    if (!req.session.userId){
+        return {errors: [fieldError('session', 'invalid session')]}
+    }
+    try{
+        await Images.delete({imageid: imageid});
+    }
+    catch(err){
+        if (err){
+            return {errors: [fieldError('image', 'image does not exist')]}
+        }
+    }
+    return null;
 }
 
 //move file from one directory to another

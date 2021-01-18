@@ -7,11 +7,11 @@ export class Tags extends BaseEntity {
     @PrimaryGeneratedColumn()
     tagid!: number;
 
-    @Column({type: "varchar", length: 20})
-    tag!: number;
+    @Column({type: "varchar", length: 20, nullable: false})
+    tag!: string;
 
     @Column({nullable: false})
-    imageid: number;
+    imageid: string;
 
     @ManyToOne(() => Images, images => images.tags, {
         primary: true

@@ -19,9 +19,9 @@ export async function sendEmailForgotPassword(to: string, html: string) {
 
   // send mail with defined transport object
   let info = await transporter.sendMail({
-    from: '"Fred Foo 👻" <foo@example.com>', // sender address
+    from: '"Shopify Repo 👻" <foo@example.com>', // sender address
     to,
-    subject: "movieClub: Forgot Password Link", // Subject line
+    subject: "shopifyRepo: Forgot Password Link", // Subject line
     html, // plain text body
   });
 }

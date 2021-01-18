@@ -7,3 +7,5 @@ export const usernameRe = /^[a-zA-Z0-9\-_]+$/;
 export const emailRe = /^[^`'"@]+@[a-zA-Z0-9\-\.]+\.[a-zA-Z0-9\-\.]+$/;
 
 export const imageExRe = /image\/jpeg|image\/jpg|image\/png/;
+
+export const resolutionRe = /^\s*[0-9]+\s*x\s*[0-9]+\s*$/;

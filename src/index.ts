@@ -4,18 +4,17 @@ import { changePassword, createUser, editProfile, forgotPassword, login, logout,
 import redis from "ioredis";
 import connectRedis from "connect-redis";
 import session from "express-session";
-import multer from "multer";
-import { v4 } from "uuid";
+
 
 import { COOKIE_NAME, __prod__, maxsize } from "./constants";
-import { uploadImage } from "./controllers/imageController";
-import { checkFileType, returnFileExtension } from "./utils/checkFileType";
+import { getImages, uploadImage, searchImages, deleteImage } from "./controllers/imageController";
+import { uploadMiddleware } from "./middleware/uploadImage";
 
 declare module "express-session" {
     interface Session {
       userId: number;
     }
-  }
+}
 
 const port = process.env.PORT || 4000;
 
@@ -36,26 +35,8 @@ const main: any = async () => {
     const redisClient = new redis();
 
     //upload files onto temp, validate they're real images before displaying back to user    
-    const storage = multer.diskStorage({
-        destination: function(req, file, cb){
-            cb(null, 'temp/');
-        },
-        filename: function(req, file, cb){
-            const ext = returnFileExtension(file);
-            const name = v4();
-            cb(null, v4() + ext)
-        }
-    })
-
-    const upload = multer({
-        limits: {fileSize: maxsize},
-        storage: storage,
-        fileFilter: function(req, file, cb){
-            checkFileType(file, cb);
-        }
-    });
-
-    //
+     
+    //cookie
     app.use(
         session({
             name: COOKIE_NAME,
@@ -75,99 +56,111 @@ const main: any = async () => {
         })
     )
 
-    app.get('/', (req: Request, res: Response) => {
-        res.send("hello world");
-    })
-
-    app.get('/register', (req: Request, res: Response) => {
-        res.send("register get");
-    })
-
     app.post('/register', async (req: Request, res: Response) => {
         const {username, password, email} = req.body;
         const user = await createUser({username, password, email}, req);
-
-        console.log(user);
-
-        res.json(req.body);
+        if (user.errors){
+            res.json(user.errors)    
+        }
+        res.json({success: true});
     })
 
     app.post('/login', async (req: Request, res: Response) => {
         const {usernameOrEmail, password} = req.body;
         const user = await login({usernameOrEmail, password}, req);
-        console.log("session");
-        console.log(req.session);
-
-        console.log(user);
-
-        res.json(req.body);
-
+        if (user.errors){
+            res.json(user.errors)    
+        }
+        res.json({success: true});
     })
 
     app.post('/logout', async (req: Request, res: Response) => {
         const valid = await logout(req, res);
-        console.log("logged out!");
-        res.json(req.body);
+        if (!valid){
+            res.json({success: false});
+        }
+        res.json({success: true})
     })
 
     app.post('/editProfile', async (req: Request, res: Response) => {
         const {firstName, lastName} = req.body;
         const error = await editProfile({firstName, lastName}, req)
-        console.log("edited!");
-        res.json(req.body);
+        if (error?.errors){
+            res.json(error.errors);
+        }
+        res.json({success: true})
     })
 
     app.post('/forgotPassword', async (req: Request, res: Response) => {
         const {email} = req.body;
         const error = await forgotPassword(email, redisClient);
-        console.log("done!");
-        res.json(req.body);
+        if (error?.errors){
+            res.json(error.errors);
+        }
+        res.json({success: true})
     })
 
     app.post('/change-password-email', async (req: Request, res: Response) => {
         const {password, token} = req.body;
         const error = await changePassword(password, token);
-        console.log("done!");
-        console.log(error);
-        res.json(req.body);
+        if (error?.errors){
+            res.json(error.errors);
+        }
+        res.json({success: true})
     })
 
     app.get('/me', async (req: Request, res: Response) => {
         const user = await me(req);
-        console.log(user);
-        res.json(req.body);
+        if (user?.errors){
+            res.json(user.errors);
+        }
+        res.json({success: true})
     })
 
-    app.post('/upload-image', (req: Request, res: Response, next: NextFunction) => {
-        if (!req.session.userId){
-            return res.end('not logged in');
-        }
-        const uploadSingle = upload.single('image');
-        uploadSingle(req, res, (err: any) => {
-            if (err){
-                if(err.code === 'LIMIT_FILE_SIZE'){
-                    return res.end('file too large');
-                }
-            }
-            next();
-        })
-    }, async (req: Request, res: Response) => {
-        console.log("file");
-        console.log(req.file);
-        console.log(req.file.path);
-        
+    app.post('/upload-image', uploadMiddleware, async (req: Request, res: Response) => {
         const image = await uploadImage(req);
-
-        /* const image = uploadImage(req);
-        console.log(image); */
-        res.json(req.body);
+        if (image?.errors){
+            res.json(image.errors);
+        }
+        res.json({image})
     })
 
     app.get('/search-image', async (req: Request, res: Response) => {
-        const user = await me(req);
-        console.log(user);
-        res.json(req.body);
+        const {search} = req.body;
+        const images = await searchImages(req, search);
+        if (images?.errors){
+            res.json(images.errors);
+        }
+        res.json({images})
     })
+
+    app.get('/images', async (req: Request, res: Response) => {
+        const images = await getImages(req);
+        if (images?.errors){
+            res.json(images.errors);
+        }
+        res.json({images})
+    })
+
+    app.delete('/:image', async (req: Request, res: Response) => {
+        const imageid = req.params.image;
+        const image = await deleteImage(imageid, req);
+        if (image?.errors){
+            res.json(image.errors);
+        }
+        res.json({success: true})
+    })
+
+    app.use('/repo/:id', function(req: Request, res: Response, next: NextFunction){
+        console.log(req.session.userId);
+        console.log(req.params.id);
+        if (req.session.userId !== parseInt(req.params.id)){
+            return ({error: 'invalid access'});
+        }
+        next();
+    },
+    express.static(__dirname + "/repo"));
+    console.log("dir name " + __dirname)
 
     app.listen(port, () => {
         console.log(`server started on http://localhost:${port}`);

@@ -202,7 +202,7 @@ export const changePassword: (password: string, token: string) => Promise<UserRe
 
     await User.update({id: user!.id}, {password: hashedPassword});
 
-    await ForgotPassword.delete({});
+    await ForgotPassword.delete({userid: user!.id});
 
     return null;
 }
