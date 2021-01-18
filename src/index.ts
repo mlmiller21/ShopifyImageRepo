@@ -1,5 +1,5 @@
 import { connection } from "./connection"
-import express, {NextFunction, request, Request, response, Response} from "express";
+import express, {NextFunction, Request, Response} from "express";
 import { changePassword, createUser, editProfile, forgotPassword, login, logout, me } from "./controllers/userController";
 import redis from "ioredis";
 import connectRedis from "connect-redis";
@@ -138,7 +138,10 @@ const main: any = async () => {
         res.json(req.body);
     })
 
-    app.post('/upload-image', (req: Request, res: Response, next: NextFunction){
+    app.post('/upload-image', (req: Request, res: Response, next: NextFunction) => {
+        if (!req.session.userId){
+            return res.end('not logged in');
+        }
         const uploadSingle = upload.single('image');
         uploadSingle(req, res, (err: any) => {
             if (err){
@@ -152,6 +155,8 @@ const main: any = async () => {
         console.log("file");
         console.log(req.file);
         console.log(req.file.path);
+        
+        const image = await uploadImage(req);
 
         /* const image = uploadImage(req);
         console.log(image); */

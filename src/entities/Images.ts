@@ -6,10 +6,10 @@ import {Tags} from "./Tags";
 export class Images extends BaseEntity {
     //uuid
     @PrimaryColumn()
-    imageID!: string;
+    imageid!: string;
 
     @Column({type: "varchar", length: 10})
-    extension!: number;
+    extension!: string;
 
     @CreateDateColumn()
     dateAdded: Date;

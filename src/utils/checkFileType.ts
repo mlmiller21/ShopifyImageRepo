@@ -1,16 +1,15 @@
+import { imageExRe } from "../regex";
 
 //simple validation
 export const checkFileType: (file: Express.Multer.File, cb: Function) => any = function(file: Express.Multer.File, cb: Function): any {
     //check mime
-    const mimeTypes = /image\/jpeg|image\/jpg|image\/png/;
-    if (!mimeTypes.test(file.mimetype)){
+    if (!imageExRe.test(file.mimetype)){
         cb(null, false);
     }
     cb(null, true);
 }
 
 export const returnFileExtension: (file: Express.Multer.File) => string = function(file: Express.Multer.File): string {
-    const mimeTypes = /image\/jpeg|image\/jpg|image\/png/;
     if (file.mimetype === 'image/jpeg'){
         return '.jpeg';
     }
