@@ -1,11 +1,15 @@
 import { connection } from "./connection"
-import express, {Request, Response} from "express";
-import { User } from "./entities/User";
+import express, {NextFunction, request, Request, response, Response} from "express";
 import { changePassword, createUser, editProfile, forgotPassword, login, logout, me } from "./controllers/userController";
 import redis from "ioredis";
 import connectRedis from "connect-redis";
 import session from "express-session";
-import { COOKIE_NAME, __prod__ } from "./constants";
+import multer from "multer";
+import { v4 } from "uuid";
+
+import { COOKIE_NAME, __prod__, maxsize } from "./constants";
+import { uploadImage } from "./controllers/imageController";
+import { checkFileType, returnFileExtension } from "./utils/checkFileType";
 
 declare module "express-session" {
     interface Session {
@@ -30,6 +34,26 @@ const main: any = async () => {
 
     const redisStore: connectRedis.RedisStore = connectRedis(session);
     const redisClient = new redis();
+
+    //upload files onto temp, validate they're real images before displaying back to user    
+    const storage = multer.diskStorage({
+        destination: function(req, file, cb){
+            cb(null, 'temp/');
+        },
+        filename: function(req, file, cb){
+            const ext = returnFileExtension(file);
+            const name = v4();
+            cb(null, v4() + ext)
+        }
+    })
+
+    const upload = multer({
+        limits: {fileSize: maxsize},
+        storage: storage,
+        fileFilter: function(req, file, cb){
+            checkFileType(file, cb);
+        }
+    });
 
     //
     app.use(
@@ -106,10 +130,35 @@ const main: any = async () => {
         console.log("done!");
         console.log(error);
         res.json(req.body);
-
     })
 
     app.get('/me', async (req: Request, res: Response) => {
+        const user = await me(req);
+        console.log(user);
+        res.json(req.body);
+    })
+
+    app.post('/upload-image', (req: Request, res: Response, next: NextFunction){
+        const uploadSingle = upload.single('image');
+        uploadSingle(req, res, (err: any) => {
+            if (err){
+                if(err.code === 'LIMIT_FILE_SIZE'){
+                    return res.end('file too large');
+                }
+            }
+            next();
+        })
+    }, async (req: Request, res: Response) => {
+        console.log("file");
+        console.log(req.file);
+        console.log(req.file.path);
+
+        /* const image = uploadImage(req);
+        console.log(image); */
+        res.json(req.body);
+    })
+
+    app.get('/search-image', async (req: Request, res: Response) => {
         const user = await me(req);
         console.log(user);
         res.json(req.body);
